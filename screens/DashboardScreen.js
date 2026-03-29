@@ -12,7 +12,7 @@ import SearchBar from '../components/SearchBar';
 import Set from '../components/Set';
 import HamburgerMenu from '../components/HamburgerMenu';
 
-export default function DashboardScreen() {
+export default function DashboardScreen({ navigation }) {
   const [schedule, setSchedule] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -20,15 +20,25 @@ export default function DashboardScreen() {
     console.log("Manual irrigation started!");
   };
 
+  // 
   const handleNavigate = (screen) => {
-    console.log("Navigating to:", screen);
+    setMenuVisible(false);        // Close menu
+    navigation.navigate(screen);   // Navigate using navigation prop
   };
 
   const activeSchedule = schedule || systemInfo;
 
   return (
     <View style={{ flex: 1 }}>
-      
+
+      {/* Overlay */}
+      {menuVisible && (
+        <TouchableOpacity
+          style={styles.overlay}
+          onPress={() => setMenuVisible(false)}
+        />
+      )}
+
       {/* Hamburger Menu */}
       <HamburgerMenu
         isVisible={menuVisible}
@@ -37,8 +47,8 @@ export default function DashboardScreen() {
       />
 
       <ScrollView style={styles.container}>
-        
-        {/* Header with Hamburger Icon */}
+
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setMenuVisible(true)}>
             <Text style={styles.hamburger}>☰</Text>
@@ -59,10 +69,13 @@ export default function DashboardScreen() {
         {/* Irrigation Schedule */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Irrigation Schedule</Text>
-          <Text>Next Irrigation Date: {activeSchedule.date || activeSchedule.nextIrrigation}</Text>
+          <Text>
+            Next Irrigation Date: {activeSchedule.date || activeSchedule.nextIrrigation}
+          </Text>
           <Text>Days to Irrigate: {activeSchedule.irrigationDays}</Text>
           <Text>Times Per Day: {activeSchedule.timesPerDay}</Text>
           <Text>Interval: Every {activeSchedule.irrigationInterval} days</Text>
+
           <Set
             currentDate={new Date().toISOString().split('T')[0]}
             onDateChange={setSchedule}
@@ -109,6 +122,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
   },
+
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 999,
+  },
+
   card: {
     backgroundColor: '#fff',
     padding: 15,

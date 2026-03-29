@@ -1,4 +1,3 @@
-// screens/LoginScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -14,9 +13,9 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    if (email && password) {
+    if (email.trim() && password.trim()) {
       Alert.alert('Login Successful');
-      navigation.replace('Dashboard'); // ✅ works now
+      navigation.replace('Dashboard');
     } else {
       Alert.alert('Please enter email and password');
     }
@@ -33,6 +32,8 @@ export default function LoginScreen({ navigation }) {
           placeholderTextColor="#555"
           value={email}
           onChangeText={setEmail}
+          keyboardType="email-address" // 
+          autoCapitalize="none"        // 
         />
 
         <TextInput
@@ -44,11 +45,11 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
-        {/* ✅ FIX: Added onPress */}
         <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
           <Text style={styles.loginText}>LOGIN</Text>
         </TouchableOpacity>
 
+        {/* Optional (safe to keep UI only) */}
         <TouchableOpacity>
           <Text style={styles.forgot}>FORGOT PASSWORD?</Text>
         </TouchableOpacity>
