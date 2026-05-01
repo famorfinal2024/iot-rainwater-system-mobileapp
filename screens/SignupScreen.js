@@ -1,4 +1,3 @@
-// screens/SignupScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -13,14 +12,62 @@ export default function SignupScreen({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
-    if (name && email && password) {
-      Alert.alert('Signup Successful');
-      navigation.replace('Login');
-    } else {
-      Alert.alert('Please fill all fields');
+  const API_URL = "http://10.0.2.2:8000/api";
+
+  const handleSignup = async () => {
+    // ✅ validation
+    if (!name || !email || !password || !confirmPassword) {
+      Alert.alert("Error", "Please fill all fields");
+      return;
     }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/register/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: name,   // 🔥 FIXED: username = name
+          email: email,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      console.log("SIGNUP RESPONSE:", data);
+
+      if (response.ok) {
+        Alert.alert("Success", "Account created successfully!");
+        navigation.replace("Login");
+      } else {
+        Alert.alert(
+          "Signup Failed",
+          data.detail || JSON.stringify(data)
+        );
+      }
+
+    } catch (error) {
+      console.log("Signup Error:", error);
+
+      Alert.alert(
+        "Network Error",
+        "Cannot connect to backend server."
+      );
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -31,7 +78,7 @@ export default function SignupScreen({ navigation }) {
 
         <TextInput
           style={styles.input}
-          placeholder="Full Name"
+          placeholder="Username"
           placeholderTextColor="#555"
           value={name}
           onChangeText={setName}
@@ -43,6 +90,7 @@ export default function SignupScreen({ navigation }) {
           placeholderTextColor="#555"
           value={email}
           onChangeText={setEmail}
+          autoCapitalize="none"
         />
 
         <TextInput
@@ -54,13 +102,31 @@ export default function SignupScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.signupBtn} onPress={handleSignup}>
-          <Text style={styles.buttonText}>SIGN UP</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          placeholderTextColor="#555"
+          secureTextEntry
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+        />
+
+        <TouchableOpacity
+          style={styles.signupBtn}
+          onPress={handleSignup}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "SIGNING UP..." : "SIGN UP"}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
           <Text style={styles.loginText}>
-            Already have an account? <Text style={{ color: '#4caf50' }}>Login</Text>
+            Already have an account?{" "}
+            <Text style={{ color: '#4caf50' }}>
+              Login
+            </Text>
           </Text>
         </TouchableOpacity>
 

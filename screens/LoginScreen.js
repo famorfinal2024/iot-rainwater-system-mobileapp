@@ -7,33 +7,87 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (email.trim() && password.trim()) {
-      Alert.alert('Login Successful');
-      navigation.replace('Dashboard');
-    } else {
-      Alert.alert('Please enter email and password');
+  const API_URL = "http://10.0.2.2:8000/api";
+
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please enter username and password');
+      return;
     }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/login/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: username,   // ✅ FIXED (no email confusion)
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      console.log("LOGIN RESPONSE:", data);
+
+      if (response.ok) {
+
+        if (data.token) {
+          await AsyncStorage.setItem("token", data.token);
+        }
+
+        if (data.username) {
+          await AsyncStorage.setItem("username", data.username);
+        }
+
+        Alert.alert("Success", "Login Successful");
+
+        navigation.replace("Dashboard");
+
+      } else {
+        Alert.alert(
+          "Login Failed",
+          data.detail || JSON.stringify(data)
+        );
+      }
+
+    } catch (error) {
+      console.log("LOGIN ERROR:", error);
+
+      Alert.alert(
+        "Network Error",
+        "Cannot connect to backend server."
+      );
+    }
+
+    setLoading(false);
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>IoT Rainwater Irrigation System</Text>
+
+        <Text style={styles.title}>
+          IoT Rainwater Irrigation System
+        </Text>
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Username"
           placeholderTextColor="#555"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address" // 
-          autoCapitalize="none"        // 
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
         />
 
         <TextInput
@@ -45,20 +99,33 @@ export default function LoginScreen({ navigation }) {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-          <Text style={styles.loginText}>LOGIN</Text>
-        </TouchableOpacity>
-
-        {/* Optional (safe to keep UI only) */}
-        <TouchableOpacity>
-          <Text style={styles.forgot}>FORGOT PASSWORD?</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-          <Text style={styles.signup}>
-            Don't have an account? <Text style={{ color: '#4caf50' }}>Sign Up</Text>
+        <TouchableOpacity
+          style={styles.loginBtn}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.loginText}>
+            {loading ? "LOGGING IN..." : "LOGIN"}
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity>
+          <Text style={styles.forgot}>
+            FORGOT PASSWORD?
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Signup')}
+        >
+          <Text style={styles.signup}>
+            Don't have an account?{" "}
+            <Text style={{ color: '#4caf50' }}>
+              Sign Up
+            </Text>
+          </Text>
+        </TouchableOpacity>
+
       </View>
     </View>
   );

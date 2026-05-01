@@ -1,6 +1,16 @@
-// components/Set.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  Alert
+} from 'react-native';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import API_URL from '../data/api';
 
 const Set = ({ currentDate, onDateChange }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -9,24 +19,60 @@ const Set = ({ currentDate, onDateChange }) => {
   const [timesPerDay, setTimesPerDay] = useState(3);
   const [irrigationInterval, setIrrigationInterval] = useState(2);
 
-  const handleSave = () => {
-    onDateChange({
-      date: selectedDate,
-      irrigationDays,
-      timesPerDay,
-      irrigationInterval
-    });
-    setIsModalOpen(false);
+  const handleSave = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      if (!token) {
+        Alert.alert("Authentication Error", "Please login first.");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/schedule/create/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Token ${token}`
+        },
+        body: JSON.stringify({
+          date: selectedDate,
+          irrigation_days: irrigationDays,
+          times_per_day: timesPerDay,
+          irrigation_interval: irrigationInterval
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        onDateChange({
+          date: selectedDate,
+          irrigationDays,
+          timesPerDay,
+          irrigationInterval
+        });
+
+        Alert.alert("Success", "Schedule saved successfully!");
+        setIsModalOpen(false);
+      } else {
+        Alert.alert("Error", JSON.stringify(data));
+      }
+
+    } catch (error) {
+      Alert.alert("Connection Error", "Failed to connect to backend.");
+      console.log(error);
+    }
   };
 
   return (
     <View>
-      {/* OPEN BUTTON */}
-      <TouchableOpacity style={styles.button} onPress={() => setIsModalOpen(true)}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => setIsModalOpen(true)}
+      >
         <Text style={styles.buttonText}>SET SCHEDULE</Text>
       </TouchableOpacity>
 
-      {/* MODAL */}
       <Modal visible={isModalOpen} animationType="slide" transparent>
         <View style={styles.overlay}>
           <View style={styles.modal}>
@@ -46,7 +92,9 @@ const Set = ({ currentDate, onDateChange }) => {
               style={styles.input}
               keyboardType="number-pad"
               value={irrigationDays.toString()}
-              onChangeText={(val) => setIrrigationDays(Number(val))}
+              onChangeText={(val) =>
+                setIrrigationDays(Number(val))
+              }
             />
 
             <Text style={styles.label}>Times Per Day</Text>
@@ -54,7 +102,9 @@ const Set = ({ currentDate, onDateChange }) => {
               style={styles.input}
               keyboardType="number-pad"
               value={timesPerDay.toString()}
-              onChangeText={(val) => setTimesPerDay(Number(val))}
+              onChangeText={(val) =>
+                setTimesPerDay(Number(val))
+              }
             />
 
             <Text style={styles.label}>Interval (days)</Text>
@@ -62,16 +112,23 @@ const Set = ({ currentDate, onDateChange }) => {
               style={styles.input}
               keyboardType="number-pad"
               value={irrigationInterval.toString()}
-              onChangeText={(val) => setIrrigationInterval(Number(val))}
+              onChangeText={(val) =>
+                setIrrigationInterval(Number(val))
+              }
             />
 
-            {/* BUTTONS */}
             <View style={styles.row}>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <TouchableOpacity
+                style={styles.saveBtn}
+                onPress={handleSave}
+              >
                 <Text style={styles.btnText}>SAVE</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsModalOpen(false)}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => setIsModalOpen(false)}
+              >
                 <Text style={styles.btnText}>CANCEL</Text>
               </TouchableOpacity>
             </View>
@@ -90,6 +147,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 10,
   },
+
   buttonText: {
     color: '#fff',
     fontWeight: 'bold',
@@ -101,6 +159,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
+
   modal: {
     backgroundColor: '#fff',
     margin: 20,

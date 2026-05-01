@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { systemInfo, alerts } from '../data/systemData';
 import SearchBar from '../components/SearchBar';
 import Set from '../components/Set';
 import HamburgerMenu from '../components/HamburgerMenu';
@@ -16,22 +17,102 @@ export default function DashboardScreen({ navigation }) {
   const [schedule, setSchedule] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
 
+  const [systemInfo, setSystemInfo] = useState({
+    waterLevel: 'Loading...',
+    tankStatus: 'Loading...',
+  });
+
+  const [alerts, setAlerts] = useState([
+    'Water level is stable',
+    'Last irrigation successful',
+    'Fertilizer mix ready',
+  ]);
+
+  useEffect(() => {
+    fetchSystemInfo();
+    fetchSchedule();
+
+    const interval = setInterval(() => {
+      fetchSystemInfo();
+      fetchSchedule();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchSystemInfo = async () => {
+    try {
+      const response = await fetch(
+        "http://10.0.2.2:8000/api/systeminfo/"
+      );
+
+      const data = await response.json();
+
+      if (data.length > 0) {
+        const latestInfo = data[data.length - 1];
+
+        setSystemInfo({
+          waterLevel: latestInfo.water_level,
+          tankStatus: latestInfo.tank_status,
+        });
+      }
+
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const fetchSchedule = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      const response = await fetch(
+        "http://10.0.2.2:8000/api/schedule/",
+        {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.length > 0) {
+        const latestSchedule = data[data.length - 1];
+
+        setSchedule({
+          date: latestSchedule.date,
+          irrigationDays: latestSchedule.irrigation_days,
+          timesPerDay: latestSchedule.times_per_day,
+          irrigationInterval:
+            latestSchedule.irrigation_interval || 0,
+        });
+      }
+
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   const handleStartIrrigation = () => {
-    console.log("Manual irrigation started!");
+    Alert.alert("Manual irrigation started!");
   };
 
-  // 
   const handleNavigate = (screen) => {
-    setMenuVisible(false);        // Close menu
-    navigation.navigate(screen);   // Navigate using navigation prop
+    setMenuVisible(false);
+    navigation.navigate(screen);
   };
 
-  const activeSchedule = schedule || systemInfo;
+  const activeSchedule = schedule || {
+    date: 'Loading...',
+    irrigationDays: 0,
+    timesPerDay: 0,
+    irrigationInterval: 0,
+  };
 
   return (
     <View style={{ flex: 1 }}>
 
-      {/* Overlay */}
       {menuVisible && (
         <TouchableOpacity
           style={styles.overlay}
@@ -39,7 +120,6 @@ export default function DashboardScreen({ navigation }) {
         />
       )}
 
-      {/* Hamburger Menu */}
       <HamburgerMenu
         isVisible={menuVisible}
         onClose={() => setMenuVisible(false)}
@@ -48,53 +128,89 @@ export default function DashboardScreen({ navigation }) {
 
       <ScrollView style={styles.container}>
 
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setMenuVisible(true)}>
+          <TouchableOpacity
+            onPress={() => setMenuVisible(true)}
+          >
             <Text style={styles.hamburger}>☰</Text>
           </TouchableOpacity>
-          <Text style={styles.headerText}>Irrigation Dashboard</Text>
-        </View>
 
-        {/* Search */}
-        <SearchBar onSearch={(value) => console.log('Searching:', value)} />
-
-        {/* Water Monitoring */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Water Monitoring</Text>
-          <Text>Water Level: {systemInfo.waterLevel}</Text>
-          <Text>Tank Status: {systemInfo.tankStatus}</Text>
-        </View>
-
-        {/* Irrigation Schedule */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Irrigation Schedule</Text>
-          <Text>
-            Next Irrigation Date: {activeSchedule.date || activeSchedule.nextIrrigation}
+          <Text style={styles.headerText}>
+            Irrigation Dashboard
           </Text>
-          <Text>Days to Irrigate: {activeSchedule.irrigationDays}</Text>
-          <Text>Times Per Day: {activeSchedule.timesPerDay}</Text>
-          <Text>Interval: Every {activeSchedule.irrigationInterval} days</Text>
+        </View>
+
+        <SearchBar
+          onSearch={(value) =>
+            console.log('Searching:', value)
+          }
+        />
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            Water Monitoring
+          </Text>
+          <Text>
+            Water Level: {systemInfo.waterLevel}
+          </Text>
+          <Text>
+            Tank Status: {systemInfo.tankStatus}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
+            Irrigation Schedule
+          </Text>
+
+          <Text>
+            Next Irrigation Date: {activeSchedule.date}
+          </Text>
+
+          <Text>
+            Days to Irrigate: {activeSchedule.irrigationDays}
+          </Text>
+
+          <Text>
+            Times Per Day: {activeSchedule.timesPerDay}
+          </Text>
+
+          <Text>
+            Interval: Every {activeSchedule.irrigationInterval} days
+          </Text>
 
           <Set
-            currentDate={new Date().toISOString().split('T')[0]}
+            currentDate={new Date()
+              .toISOString()
+              .split('T')[0]}
             onDateChange={setSchedule}
           />
         </View>
 
-        {/* Alerts */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>System Alerts</Text>
+          <Text style={styles.cardTitle}>
+            System Alerts
+          </Text>
+
           {alerts.map((alert, index) => (
-            <View key={index} style={styles.alertBox}>
-              <Text style={styles.alertText}>{alert}</Text>
+            <View
+              key={index}
+              style={styles.alertBox}
+            >
+              <Text style={styles.alertText}>
+                {alert}
+              </Text>
             </View>
           ))}
         </View>
 
-        {/* Start Irrigation */}
-        <TouchableOpacity style={styles.bigButton} onPress={handleStartIrrigation}>
-          <Text style={styles.buttonText}>START MANUAL IRRIGATION</Text>
+        <TouchableOpacity
+          style={styles.bigButton}
+          onPress={handleStartIrrigation}
+        >
+          <Text style={styles.buttonText}>
+            START MANUAL IRRIGATION
+          </Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -122,7 +238,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
   },
-
   overlay: {
     position: 'absolute',
     top: 0,
@@ -132,7 +247,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)',
     zIndex: 999,
   },
-
   card: {
     backgroundColor: '#fff',
     padding: 15,
